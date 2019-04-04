@@ -1941,7 +1941,7 @@ RTCPeerConnection.prototype.getStats = function () {
 	}
 
 	if (isClosed.call(this)) {
-		throw new Errors.InvalidStateError('peerconnection is closed');
+		return;
 	}
 
 	debug('getStats() [selector:%o]', selector);
