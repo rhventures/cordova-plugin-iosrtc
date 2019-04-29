@@ -69,7 +69,7 @@ class PluginRTCDataChannel : NSObject, RTCDataChannelDelegate {
 			// rtcDataChannelInit.protocol = options!.objectForKey("protocol") as! String
 		// }
 		if options?.object(forKey: "protocol") != nil {
-            rtcDataChannelInit.`protocol` = options!.object(forKey: "protocol") as? String
+			rtcDataChannelInit.`protocol` = options!.object(forKey: "protocol") as! String
 		}
 
 		if options?.object(forKey: "negotiated") != nil {
@@ -99,7 +99,7 @@ class PluginRTCDataChannel : NSObject, RTCDataChannelDelegate {
 				"protocol": self.rtcDataChannel!.`protocol`,
 				"negotiated": self.rtcDataChannel!.isNegotiated,
 				"id": self.rtcDataChannel!.streamId,
-				"readyState": PluginRTCTypes.dataChannelStates[self.rtcDataChannel!.state.rawValue] as String!,
+                "readyState": PluginRTCTypes.dataChannelStates[self.rtcDataChannel!.state.rawValue] as String?,
 				"bufferedAmount": self.rtcDataChannel!.bufferedAmount
 			]
 		])
@@ -207,14 +207,14 @@ class PluginRTCDataChannel : NSObject, RTCDataChannelDelegate {
 
 
 	func channelDidChangeState(_ channel: RTCDataChannel!) {
-		let state_str = PluginRTCTypes.dataChannelStates[self.rtcDataChannel!.state.rawValue] as String!
+        let state_str = PluginRTCTypes.dataChannelStates[self.rtcDataChannel!.state.rawValue] as String?
 
 		NSLog("PluginRTCDataChannel | state changed [state:%@]", String(describing: state_str))
 
 		if self.eventListener != nil {
 			self.eventListener!([
 				"type": "statechange",
-                "readyState": state_str ?? ""
+				"readyState": state_str
 			])
 		} else {
 			// It may happen that the eventListener is not yet set, so store the lost states.

@@ -11,7 +11,7 @@ class PluginEnumerateDevices {
 	class func call(_ callback: (_ data: NSDictionary) -> Void) {
 		NSLog("PluginEnumerateDevices#call()")
 
-		let devices = AVCaptureDevice.devices()
+        let devices = AVCaptureDevice.devices()
 
 		let json: NSMutableDictionary = [
 			"devices": NSMutableDictionary()
@@ -19,8 +19,8 @@ class PluginEnumerateDevices {
 
 		for device: AVCaptureDevice in devices {
 			var facing: String
-			let hasAudio = device.hasMediaType(AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.audio)))
-			let hasVideo = device.hasMediaType(AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video)))
+            let hasAudio = device.hasMediaType(AVMediaType.audio)
+            let hasVideo = device.hasMediaType(AVMediaType.video)
 
 			switch device.position {
 			case AVCaptureDevice.Position.unspecified:
@@ -29,7 +29,9 @@ class PluginEnumerateDevices {
 				facing = "back"
 			case AVCaptureDevice.Position.front:
 				facing = "front"
-			}
+            @unknown default:
+                <#fatalError()#>
+            }
 
 			NSLog("- device [uniqueID:'%@', localizedName:'%@', facing:%@, audio:%@, video:%@, connected:%@]",
 				String(device.uniqueID), String(device.localizedName), String(facing),
@@ -49,9 +51,4 @@ class PluginEnumerateDevices {
 
 		callback(json)
 	}
-}
-
-// Helper function inserted by Swift 4.2 migrator.
-fileprivate func convertFromAVMediaType(_ input: AVMediaType) -> String {
-	return input.rawValue
 }
