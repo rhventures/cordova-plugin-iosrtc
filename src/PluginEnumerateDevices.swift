@@ -29,8 +29,6 @@ class PluginEnumerateDevices {
 				facing = "back"
 			case AVCaptureDevice.Position.front:
 				facing = "front"
-            @unknown default:
-                <#fatalError()#>
             }
 
 			NSLog("- device [uniqueID:'%@', localizedName:'%@', facing:%@, audio:%@, video:%@, connected:%@]",
