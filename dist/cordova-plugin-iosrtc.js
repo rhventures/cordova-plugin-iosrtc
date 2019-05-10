@@ -2672,8 +2672,8 @@ function observeVideo(video) {
 		// recorded.
 		characterDataOldValue: false,
 		// Set to an array of attribute local names (without namespace) if not all attribute mutations
-		// need to be observed.
-		attributeFilter: ['src', 'srcObject']
+		// need to be observed. <not work in ios12>
+		//attributeFilter: ['src', 'srcObject'] 
 	});
 
 	// Intercept video 'error' events if it's due to the attached MediaStream.
@@ -2695,6 +2695,8 @@ function handleVideo(video) {
 	var
 		xhr = new XMLHttpRequest(),
 		stream;
+
+	debug('handleVideo, src='+video.id+", srcObject="+video.srcObject);
 
 	// The app has set video.src.
 	if (video.src) {
