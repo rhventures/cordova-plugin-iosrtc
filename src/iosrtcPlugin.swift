@@ -36,7 +36,8 @@ class iosrtcPlugin : CDVPlugin {
 		pluginRTCPeerConnections = [:]
 
 		// Initialize DTLS stuff.
-		RTCPeerConnectionFactory.initializeSSL()
+		RTCInitializeSSL()
+		//RTCSetMinDebugLogLevel(RTCLoggingSeverity.warning)
 
 		// Create a RTCPeerConnectionFactory.
 		self.rtcPeerConnectionFactory = RTCPeerConnectionFactory()
@@ -548,8 +549,8 @@ class iosrtcPlugin : CDVPlugin {
 		let pcId = command.argument(at: 0) as! Int
 		let dsId = command.argument(at: 1) as! Int
 		let tones = command.argument(at: 2) as! String
-		let duration = command.argument(at: 3) as! Int
-		let interToneGap = command.argument(at: 4) as! Int
+		let duration = command.argument(at: 3) as! Double
+		let interToneGap = command.argument(at: 4) as! Double
 		let pluginRTCPeerConnection = self.pluginRTCPeerConnections[pcId]
 
 		if pluginRTCPeerConnection == nil {

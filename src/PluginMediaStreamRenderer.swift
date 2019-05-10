@@ -47,7 +47,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 	func run() {
 		NSLog("PluginMediaStreamRenderer#run()")
-
+		
 		self.videoView.delegate = self
 	}
 
@@ -105,13 +105,13 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 		// If same video track as before do nothing.
 		if oldRtcVideoTrack != nil && self.rtcVideoTrack != nil &&
-			oldRtcVideoTrack!.label == self.rtcVideoTrack!.label {
+			oldRtcVideoTrack!.trackId == self.rtcVideoTrack!.trackId {
 			NSLog("PluginMediaStreamRenderer#mediaStreamChanged() | same video track as before")
 		}
 
 		// Different video track.
 		else if oldRtcVideoTrack != nil && self.rtcVideoTrack != nil &&
-			oldRtcVideoTrack!.label != self.rtcVideoTrack!.label {
+			oldRtcVideoTrack!.trackId != self.rtcVideoTrack!.trackId {
 			NSLog("PluginMediaStreamRenderer#mediaStreamChanged() | has a new video track")
 
 			oldRtcVideoTrack!.remove(self.videoView)
@@ -188,10 +188,10 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		self.elementView.alpha = CGFloat(opacity)
 		self.elementView.layer.zPosition = CGFloat(zIndex)
 
-                // if the zIndex is 0 (the default) bring the view to the top, last one wins
-                if zIndex == 0 {
+		// if the zIndex is 0 (the default) bring the view to the top, last one wins
+		if zIndex == 0 {
 			self.webView.superview?.bringSubviewToFront(self.elementView)
-                }
+		}
 
 		if !mirrored {
 			self.elementView.transform = CGAffineTransform.identity
@@ -239,8 +239,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	 * Methods inherited from RTCEAGLVideoViewDelegate.
 	 */
 
-
-	func videoView(_ videoView: RTCEAGLVideoView!, didChangeVideoSize size: CGSize) {
+	func videoView(_ videoView: RTCVideoRenderer, didChangeVideoSize size: CGSize) {
 		NSLog("PluginMediaStreamRenderer | video size changed [width:%@, height:%@]",
 			String(describing: size.width), String(describing: size.height))
 

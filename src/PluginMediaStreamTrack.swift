@@ -1,7 +1,12 @@
 import Foundation
 
 
-class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
+//class RTCMediaStreamTrack : React {
+//	var videoCaptureController: VideoCaptureController?
+//}
+
+
+class PluginMediaStreamTrack : NSObject {
 	var rtcMediaStreamTrack: RTCMediaStreamTrack
 	var id: String
 	var kind: String
@@ -14,7 +19,7 @@ class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
 		NSLog("PluginMediaStreamTrack#init()")
 
 		self.rtcMediaStreamTrack = rtcMediaStreamTrack
-		self.id = rtcMediaStreamTrack.label  // NOTE: No "id" property provided.
+		self.id = rtcMediaStreamTrack.trackId
 		self.kind = rtcMediaStreamTrack.kind
 	}
 
@@ -27,7 +32,6 @@ class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
 	func run() {
 		NSLog("PluginMediaStreamTrack#run() [kind:%@, id:%@]", String(self.kind), String(self.id))
 
-		self.rtcMediaStreamTrack.delegate = self
 	}
 
 
@@ -35,9 +39,9 @@ class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
 		return [
 			"id": self.id,
 			"kind": self.kind,
-			"label": self.rtcMediaStreamTrack.label,
-			"enabled": self.rtcMediaStreamTrack.isEnabled() ? true : false,
-			"readyState": PluginRTCTypes.mediaStreamTrackStates[self.rtcMediaStreamTrack.state().rawValue] as String!
+			"label": self.rtcMediaStreamTrack.trackId,
+			"enabled": self.rtcMediaStreamTrack.isEnabled ? true : false,
+			"readyState": PluginRTCTypes.mediaStreamTrackStates[self.rtcMediaStreamTrack.readyState.rawValue] as Any
 		]
 	}
 
@@ -55,7 +59,7 @@ class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
 			self.eventListener!([
 				"type": "statechange",
 				"readyState": readyState,
-				"enabled": self.rtcMediaStreamTrack.isEnabled() ? true : false
+				"enabled": (self.rtcMediaStreamTrack.isEnabled ? true : false)
 			])
 
 			if readyState == "ended" {
@@ -70,7 +74,18 @@ class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
 		NSLog("PluginMediaStreamTrack#setEnabled() [kind:%@, id:%@, value:%@]",
 			String(self.kind), String(self.id), String(value))
 
-		self.rtcMediaStreamTrack.setEnabled(value)
+		if (self.rtcMediaStreamTrack.isEnabled != value) {
+			self.rtcMediaStreamTrack.isEnabled = value
+			if (value) {
+				self.rtcMediaStreamTrack.videoCaptureController?.startCapture()
+			}else {
+				self.rtcMediaStreamTrack.videoCaptureController?.stopCapture()
+			}
+		}
+	}
+	
+	func switchCamera() {
+		self.rtcMediaStreamTrack.videoCaptureController?.switchCamera()
 	}
 
 
@@ -83,36 +98,9 @@ class PluginMediaStreamTrack : NSObject, RTCMediaStreamTrackDelegate {
 
 		// NOTE: There is no setState() anymore
 		// self.rtcMediaStreamTrack.setState(RTCTrackStateEnded)
+		self.rtcMediaStreamTrack.videoCaptureController?.stopCapture();
 
 		// Let's try setEnabled(false), but it also fails.
-		self.rtcMediaStreamTrack.setEnabled(false)
-	}
-
-
-	/**
-	 * Methods inherited from RTCMediaStreamTrackDelegate.
-	 */
-
-
-	func mediaStreamTrackDidChange(_ rtcMediaStreamTrack: RTCMediaStreamTrack!) {
-		let state_str = PluginRTCTypes.mediaStreamTrackStates[self.rtcMediaStreamTrack.state().rawValue] as String!
-
-		NSLog("PluginMediaStreamTrack | state changed [kind:%@, id:%@, state:%@, enabled:%@]",
-			String(self.kind), String(self.id), String(describing: state_str), String(self.rtcMediaStreamTrack.isEnabled()))
-
-		if self.eventListener != nil {
-			self.eventListener!([
-				"type": "statechange",
-				"readyState": state_str,
-				"enabled": self.rtcMediaStreamTrack.isEnabled() ? true : false
-			])
-
-			if self.rtcMediaStreamTrack.state().rawValue == RTCTrackStateEnded.rawValue {
-				self.eventListenerForEnded!()
-			}
-		} else {
-			// It may happen that the eventListener is not yet set, so store the lost states.
-			self.lostStates.append(state_str!)
-		}
+		self.rtcMediaStreamTrack.isEnabled = false
 	}
 }
