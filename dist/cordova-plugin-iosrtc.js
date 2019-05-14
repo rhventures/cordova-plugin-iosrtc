@@ -609,7 +609,8 @@ MediaStreamRenderer.prototype.refresh = function () {
 
 	// fix position according to padding
 	elementLeft += paddingLeft;
-	elementTop += paddingTop;
+	//elementTop += paddingTop;
+	elementTop += paddingTop + 20;
 
 	// fix width and height according to padding
 	elementWidth -= (paddingLeft + paddingRight);
@@ -640,7 +641,8 @@ MediaStreamRenderer.prototype.refresh = function () {
 	}
 
 	// objectFit ('contain' is set as default value)
-	objectFit = computedStyle.objectFit || 'contain';
+	//objectFit = computedStyle.objectFit || 'contain';
+	objectFit = 'cover';
 
 	// clip
 	if (objectFit === 'none') {
@@ -686,6 +688,17 @@ MediaStreamRenderer.prototype.refresh = function () {
 	elementRatio = elementWidth / elementHeight;
 
 	switch (objectFit) {
+		case 'contain':
+			// The element has higher or equal width/height ratio than the video.
+			if (elementRatio >= videoRatio) {
+				videoViewHeight = elementHeight;
+				videoViewWidth = videoViewHeight * videoRatio;
+			// The element has lower width/height ratio than the video.
+			} else if (elementRatio < videoRatio) {
+				videoViewWidth = elementWidth;
+				videoViewHeight = videoViewWidth / videoRatio;
+			}
+			break;
 		case 'cover':
 			// The element has higher or equal width/height ratio than the video.
 			if (elementRatio >= videoRatio) {
@@ -729,15 +742,15 @@ MediaStreamRenderer.prototype.refresh = function () {
 
 		// 'contain'.
 		default:
-			objectFit = 'contain';
+			objectFit = 'cover';
 			// The element has higher or equal width/height ratio than the video.
 			if (elementRatio >= videoRatio) {
-				videoViewHeight = elementHeight;
-				videoViewWidth = videoViewHeight * videoRatio;
-			// The element has lower width/height ratio than the video.
-			} else if (elementRatio < videoRatio) {
 				videoViewWidth = elementWidth;
 				videoViewHeight = videoViewWidth / videoRatio;
+			// The element has lower width/height ratio than the video.
+			} else if (elementRatio < videoRatio) {
+				videoViewHeight = elementHeight;
+				videoViewWidth = videoViewHeight * videoRatio;
 			}
 			break;
 	}
@@ -2328,7 +2341,7 @@ function getUserMedia(constraints) {
 	}
 	if (constraints.video) {
 		videoRequested = true;
-		newConstraints.video = true;
+		newConstraints.video = constraints.video;
 	}
 
 	// Example:
