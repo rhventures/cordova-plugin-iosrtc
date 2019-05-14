@@ -642,8 +642,8 @@ MediaStreamRenderer.prototype.refresh = function () {
 	}
 
 	// objectFit ('contain' is set as default value)
-	//objectFit = computedStyle.objectFit || 'contain';
-	objectFit = 'cover';
+	objectFit = computedStyle.objectFit || 'contain';
+	//objectFit = 'cover';
 
 	// clip
 	if (objectFit === 'none') {
@@ -2342,7 +2342,7 @@ function getUserMedia(constraints) {
 	}
 	if (constraints.video) {
 		videoRequested = true;
-		newConstraints.video = constraints.video;
+		newConstraints.video = true; //constraints.video;
 	}
 
 	// Example:
