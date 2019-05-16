@@ -610,8 +610,8 @@ MediaStreamRenderer.prototype.refresh = function () {
 
 	// fix position according to padding
 	elementLeft += paddingLeft;
-	//elementTop += paddingTop;
-	elementTop += paddingTop + 20;
+	elementTop += paddingTop;
+	//elementTop += paddingTop + 20;
 
 	// fix width and height according to padding
 	elementWidth -= (paddingLeft + paddingRight);
