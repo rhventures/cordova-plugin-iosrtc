@@ -3,8 +3,11 @@ import AVFoundation
 
 
 class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
+	var uuid: String
+	var port: Int
 	var webView: UIView
 	var eventListener: (_ data: NSDictionary) -> Void
+	var cbData: (_ uuid: String, _ data: NSData?) -> Void
 	var elementView: UIView
 	var videoView: RTCEAGLVideoView
 	var pluginMediaStream: PluginMediaStream?
@@ -13,14 +16,20 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 
 	init(
+		uuid: String,
+		port: Int,
 		webView: UIView,
-		eventListener: @escaping (_ data: NSDictionary) -> Void
+		eventListener: @escaping (_ data: NSDictionary) -> Void,
+		cbData: @escaping (_ uuid:String, _ data: NSData?) -> Void
 	) {
 		NSLog("PluginMediaStreamRenderer#init()")
 
+		self.uuid = uuid
+		self.port = port
 		// The browser HTML view.
 		self.webView = webView
 		self.eventListener = eventListener
+		self.cbData = cbData
 		// The video element view.
 		self.elementView = UIView()
 		// The effective video view in which the the video stream is shown.
@@ -49,6 +58,14 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		NSLog("PluginMediaStreamRenderer#run()")
 		
 		self.videoView.delegate = self
+
+		self.eventListener([
+			"type": "renderwebsocket",
+			"ws" : [
+				"uuid": self.uuid,
+				"port": self.port
+			]
+		])
 	}
 
 
@@ -251,5 +268,44 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 			]
 		])
 	}
+	
+	func videoView(_ videoView: RTCVideoRenderer, didChange frame: RTCVideoFrame?) {
+		//NSLog("PluginMediaStreamRenderer | renderFrame")
+		if (frame == nil) {
+			return;
+		}
+		
+		let i420: RTCI420BufferProtocol = frame!.buffer.toI420()
+		let YPtr: UnsafePointer<UInt8> = i420.dataY
+		let UPtr: UnsafePointer<UInt8> = i420.dataU
+		let VPtr: UnsafePointer<UInt8> = i420.dataV
+		let YSize: Int = Int(frame!.width * frame!.height)
+		let USize: Int = Int(YSize / 4)
+		let VSize: Int = Int(YSize / 4)
+		let frameSize:Int = YSize + USize + VSize
+		var width: Int16 = Int16(frame!.width)
+		var height: Int16 = Int16(frame!.height)
+		var rotation: Int16 = Int16(frame!.rotation.rawValue)
+		var timestamp: Int32 = frame!.timeStamp;
+		
+		// format: '$'(2B)+width(2B)+height(2B)+rotation(2B)+ts(4B)+'0'(7B) + data
+		let headSize:Int = 16
+		let dataSize:Int = headSize + frameSize
+		let pduData: NSMutableData? = NSMutableData(length: dataSize)
+		
+		let headPtr = pduData!.mutableBytes
+		var headMark:UInt16 = 0x2401
+		memcpy(headPtr, &headMark, 2)
+		memcpy(headPtr+2, &width, 2)
+		memcpy(headPtr+2+2, &height, 2)
+		memcpy(headPtr+2+2+2, &rotation, 2)
+		memcpy(headPtr+2+2+2+2, &timestamp, 4)
+		
+		let bodyPtr = pduData!.mutableBytes + headSize
+		memcpy(bodyPtr, YPtr, YSize)
+		memcpy(bodyPtr + YSize, UPtr, USize);
+		memcpy(bodyPtr + YSize + USize, VPtr, VSize);
 
+		self.cbData(self.uuid, pduData)
+	}
 }

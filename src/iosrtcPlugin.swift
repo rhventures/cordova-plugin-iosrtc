@@ -18,6 +18,7 @@ class iosrtcPlugin : CDVPlugin {
 	var pluginMediaStreamRenderers: [Int : PluginMediaStreamRenderer]!
 	// Dispatch queue for serial operations.
 	var queue: DispatchQueue!
+	var server: WebSocketServerX?
 
 
 	// This is just called if <param name="onload" value="true" /> in plugin.xml.
@@ -46,6 +47,9 @@ class iosrtcPlugin : CDVPlugin {
 		self.pluginGetUserMedia = PluginGetUserMedia(
 			rtcPeerConnectionFactory: rtcPeerConnectionFactory
 		)
+		
+		self.server = WebSocketServerX()
+		self.server?.start(lport: 12345, tcpNoDelay: true)
 	}
 
 
@@ -57,6 +61,7 @@ class iosrtcPlugin : CDVPlugin {
     @objc(onAppTerminate)
 	override func onAppTerminate() {
 		NSLog("iosrtcPlugin#onAppTerminate() | doing nothing")
+		self.server?.stop()
 	}
 
 
@@ -727,16 +732,24 @@ class iosrtcPlugin : CDVPlugin {
 	@objc(new_MediaStreamRenderer:) func new_MediaStreamRenderer(_ command: CDVInvokedUrlCommand) {
 		NSLog("iosrtcPlugin#new_MediaStreamRenderer()")
 
+		let wsuuid = self.server?.getUUID() ?? ""
+		let wsport = self.server?.realport ?? 0
+		
 		let id = command.argument(at: 0) as! Int
 
 		let pluginMediaStreamRenderer = PluginMediaStreamRenderer(
+			uuid: wsuuid,
+			port: wsport,
 			webView: self.webView!,
 			eventListener: { (data: NSDictionary) -> Void in
 				let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data as! [AnyHashable: Any])
 
 				// Allow more callbacks.
-				result?.setKeepCallbackAs(true);
+				result?.setKeepCallbackAs(true)
 				self.emit(command.callbackId, result: result!)
+			},
+			cbData: { (uuid: String, data: NSData?) -> Void in
+				self.server?.send(uuid: uuid, msg: data)
 			}
 		)
 
@@ -811,6 +824,8 @@ class iosrtcPlugin : CDVPlugin {
 			NSLog("iosrtcPlugin#MediaStreamRenderer_close() | ERROR: pluginMediaStreamRenderer with id=%@ does not exist", String(id))
 			return
 		}
+		
+		self.server?.close(uuid: pluginMediaStreamRenderer!.uuid, code: 0, reason: "close")
 
 		pluginMediaStreamRenderer!.close()
 
@@ -886,7 +901,6 @@ class iosrtcPlugin : CDVPlugin {
 			self.commandDelegate!.send(result, callbackId: callbackId)
 		}
 	}
-
 
 	fileprivate func saveMediaStream(_ pluginMediaStream: PluginMediaStream) {
 		if self.pluginMediaStreams[pluginMediaStream.id] == nil {
