@@ -502,10 +502,17 @@ function MediaStreamRenderer(element) {
 	this.videoWidth = undefined;
 	this.videoHeight = undefined;
 
-	// Custom paint
+	// Use canvas not UIView
+	this.useCanvas = false;
 	this.url = undefined;
 	this.websocket = undefined;
 	this.canvasCtx = undefined;
+	var canvasId = element.id + '__canvas';
+	this.canvasElement = document.getElementById(canvasId);
+	if (this.canvasElement) {
+		this.initCanvas(this.canvasElement);
+		this.useCanvas = true;
+	}
 
 	// Private attributes.
 	this.id = randomNumber();
@@ -514,10 +521,9 @@ function MediaStreamRenderer(element) {
 		onEvent.call(self, data);
 	}
 
-	exec(onResultOK, null, 'iosrtcPlugin', 'new_MediaStreamRenderer', [this.id]);
+	exec(onResultOK, null, 'iosrtcPlugin', 'new_MediaStreamRenderer', [this.id, this.useCanvas]);
 
 	this.refresh(this);
-	this.initCanvas('mainCanvas');
 }
 
 

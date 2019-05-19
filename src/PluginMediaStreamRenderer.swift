@@ -5,10 +5,11 @@ import AVFoundation
 class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	var uuid: String
 	var port: Int
+	var useCanvas: Bool
 	var webView: UIView
 	var eventListener: (_ data: NSDictionary) -> Void
 	var cbData: (_ uuid: String, _ data: NSData?) -> Void
-	var elementView: UIView
+	var elementView: UIView?
 	var videoView: RTCEAGLVideoView
 	var pluginMediaStream: PluginMediaStream?
 	var rtcAudioTrack: RTCAudioTrack?
@@ -18,6 +19,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	init(
 		uuid: String,
 		port: Int,
+		useCanvas: Bool,
 		webView: UIView,
 		eventListener: @escaping (_ data: NSDictionary) -> Void,
 		cbData: @escaping (_ uuid:String, _ data: NSData?) -> Void
@@ -26,26 +28,31 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 		self.uuid = uuid
 		self.port = port
+		self.useCanvas = useCanvas
+	
 		// The browser HTML view.
 		self.webView = webView
 		self.eventListener = eventListener
 		self.cbData = cbData
-		// The video element view.
-		self.elementView = UIView()
+		
 		// The effective video view in which the the video stream is shown.
 		// It's placed over the elementView.
 		self.videoView = RTCEAGLVideoView()
-
-		self.elementView.isUserInteractionEnabled = false
-		self.elementView.isHidden = true
-		self.elementView.backgroundColor = UIColor.black
-		self.elementView.addSubview(self.videoView)
-		self.elementView.layer.masksToBounds = true
-
+		self.videoView.donotRender = self.useCanvas
 		self.videoView.isUserInteractionEnabled = false
 
-		// Place the video element view inside the WebView's superview
-		self.webView.superview?.addSubview(self.elementView)
+		if (!self.useCanvas) {
+			// The video element view.
+			self.elementView = UIView()
+			self.elementView?.isUserInteractionEnabled = false
+			self.elementView?.isHidden = true
+			self.elementView?.backgroundColor = UIColor.black
+			self.elementView?.addSubview(self.videoView)
+			self.elementView?.layer.masksToBounds = true
+
+			// Place the video element view inside the WebView's superview
+			self.webView.superview?.addSubview(self.elementView!)
+		}
 	}
 
 
@@ -152,6 +159,10 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 
 	func refresh(_ data: NSDictionary) {
+		if (self.useCanvas) {
+			return
+		}
+
 		let elementLeft = data.object(forKey: "elementLeft") as? Double ?? 0
 		let elementTop = data.object(forKey: "elementTop") as? Double ?? 0
 		let elementWidth = data.object(forKey: "elementWidth") as? Double ?? 0
@@ -173,7 +184,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		let videoViewLeft: Double = (elementWidth - videoViewWidth) / 2
 		let videoViewTop: Double = (elementHeight - videoViewHeight) / 2
 
-		self.elementView.frame = CGRect(
+		self.elementView?.frame = CGRect(
 			x: CGFloat(elementLeft),
 			y: CGFloat(elementTop),
 			width: CGFloat(elementWidth),
@@ -197,32 +208,32 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		)
 
 		if visible {
-			self.elementView.isHidden = false
+			self.elementView?.isHidden = false
 		} else {
-			self.elementView.isHidden = true
+			self.elementView?.isHidden = true
 		}
 
-		self.elementView.alpha = CGFloat(opacity)
-		self.elementView.layer.zPosition = CGFloat(zIndex)
+		self.elementView?.alpha = CGFloat(opacity)
+		self.elementView?.layer.zPosition = CGFloat(zIndex)
 
 		// if the zIndex is 0 (the default) bring the view to the top, last one wins
 		if zIndex == 0 {
-			self.webView.superview?.bringSubview(toFront: self.elementView)
+			self.webView.superview?.bringSubview(toFront: self.elementView!)
 		}
 
 		if !mirrored {
-			self.elementView.transform = CGAffineTransform.identity
+			self.elementView?.transform = CGAffineTransform.identity
 		} else {
-			self.elementView.transform = CGAffineTransform(scaleX: -1.0, y: 1.0)
+			self.elementView?.transform = CGAffineTransform(scaleX: -1.0, y: 1.0)
 		}
 
 		if clip {
-			self.elementView.clipsToBounds = true
+			self.elementView?.clipsToBounds = true
 		} else {
-			self.elementView.clipsToBounds = false
+			self.elementView?.clipsToBounds = false
 		}
 
-		self.elementView.layer.cornerRadius = CGFloat(borderRadius)
+		self.elementView?.layer.cornerRadius = CGFloat(borderRadius)
 	}
 
 
@@ -230,7 +241,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		NSLog("PluginMediaStreamRenderer#close()")
 
 		self.reset()
-		self.elementView.removeFromSuperview()
+		self.elementView?.removeFromSuperview()
 	}
 
 
@@ -271,8 +282,8 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	
 	func videoView(_ videoView: RTCVideoRenderer, didChange frame: RTCVideoFrame?) {
 		//NSLog("PluginMediaStreamRenderer | renderFrame")
-		if (frame == nil) {
-			return;
+		if (frame == nil || !self.useCanvas) {
+			return
 		}
 		
 		let i420: RTCI420BufferProtocol = frame!.buffer.toI420()

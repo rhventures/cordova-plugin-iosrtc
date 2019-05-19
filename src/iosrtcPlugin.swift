@@ -736,10 +736,12 @@ class iosrtcPlugin : CDVPlugin {
 		let wsport = self.server?.realport ?? 0
 		
 		let id = command.argument(at: 0) as! Int
+		let canvas = command.argument(at: 1) as! Bool
 
 		let pluginMediaStreamRenderer = PluginMediaStreamRenderer(
 			uuid: wsuuid,
 			port: wsport,
+			useCanvas: canvas,
 			webView: self.webView!,
 			eventListener: { (data: NSDictionary) -> Void in
 				let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data as! [AnyHashable: Any])
