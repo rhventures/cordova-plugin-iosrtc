@@ -63,6 +63,13 @@
 		<source-file src="src/PluginMediaStreamRenderer.swift" />
 		<source-file src="src/PluginVideoCaptureController.swift" />
 
+        <!-- Import from cordova-plugin-websocket-server -->
+        <source-file src="src/PluginInterface.swift" />
+        <source-file src="src/PluginWebSocketServer.swift"/>
+        <header-file src="lib/psocket/headers/PSWebSocket.h"/>
+        <header-file src="lib/psocket/headers/PSWebSocketServer.h"/>
+        <header-file src="lib/psocket/headers/PSWebSocketTypes.h"/>
+
 		<!-- iOS shared dependencies -->
 		<framework src="AVFoundation.framework" />
 		<framework src="CoreGraphics.framework" />
@@ -80,8 +87,17 @@
 		<framework src="libstdc++.dylib" />
 		<framework src="libsqlite3.0.dylib" />
 		<framework src="VideoToolbox.framework" />
-        <framework src="src/WebRTC.framework" custom="true" embed="true" />
+        <framework src="lib/WebRTC.framework" custom="true" embed="true" />
+
+        <!-- Import from cordova-plugin-websocket-server -->
+        <framework src="Foundation.framework"/>
+        <framework src="CFNetwork.framework"/>
+        <framework src="Security.framework"/>
+        <framework src="libz.tbd"/>
+        <source-file framework="true" src="lib/psocket/libPocketSocket.a" />
 
 	</platform>
+
+    <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
 
 </plugin>

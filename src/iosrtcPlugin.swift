@@ -18,7 +18,7 @@ class iosrtcPlugin : CDVPlugin {
 	var pluginMediaStreamRenderers: [Int : PluginMediaStreamRenderer]!
 	// Dispatch queue for serial operations.
 	var queue: DispatchQueue!
-	var server: WebSocketServerX?
+	var server: PluginWebSocketServer?
 
 
 	// This is just called if <param name="onload" value="true" /> in plugin.xml.
@@ -48,7 +48,7 @@ class iosrtcPlugin : CDVPlugin {
 			rtcPeerConnectionFactory: rtcPeerConnectionFactory
 		)
 		
-		self.server = WebSocketServerX()
+		self.server = PluginWebSocketServer()
 		self.server?.start(lport: 12345, tcpNoDelay: true)
 	}
 
