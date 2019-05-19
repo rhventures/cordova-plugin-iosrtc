@@ -517,6 +517,7 @@ function MediaStreamRenderer(element) {
 	exec(onResultOK, null, 'iosrtcPlugin', 'new_MediaStreamRenderer', [this.id]);
 
 	this.refresh(this);
+	this.initCanvas('mainCanvas');
 }
 
 
@@ -789,8 +790,13 @@ MediaStreamRenderer.prototype.close = function () {
 	exec(null, null, 'iosrtcPlugin', 'MediaStreamRenderer_close', [this.id]);
 };
 
-
 MediaStreamRenderer.prototype.openWebSocket = function(host, port, uuid) {
+	if (!this.canvasCtx) {
+		debug('no canvas and donot open websocket');
+		return;
+	}
+
+	var self = this;
 	this.url = 'ws://'+host+':'+port+'?uuid='+uuid;
 	this.websocket = new window.WebSocket(this.url);
 	this.websocket.binaryType = 'arraybuffer';
@@ -806,7 +812,10 @@ MediaStreamRenderer.prototype.openWebSocket = function(host, port, uuid) {
 		debug('websocket close for uuid:' + uuid + ', error:'+errorStr);
 	};
 	this.websocket.onmessage = function(event) {
-		debug('websocket message for uuid:' + uuid + ', size:' + event.data.length);
+		//debug('websocket message for uuid:' + uuid + ', size:' + event.data.length);
+		if (!self.stream) {
+			return;
+		}
 
 		var headLen = 16;
 		var pdu = new DataView(event.data);
@@ -822,19 +831,17 @@ MediaStreamRenderer.prototype.openWebSocket = function(host, port, uuid) {
 		var height = pdu.getUint16(8, true);
 		var rotation = pdu.getUint16(10, true);
 		var timestamp = pdu.getUint32(12, true);
-		debug('websocket message format: body='+bodyLen+', width='+width+',height='+height+", size="+pdu.byteLength);
+		//debug('websocket message format: body='+bodyLen+', width='+width+',height='+height+", size="+pdu.byteLength);
 		if (pdu.byteLength != (headLen + bodyLen)) {
 			debug('websocket message, wrong data length');
+		}else {
+			var typedArray = new Uint8Array(event.data);
+			var frame = typedArray.subarray(headLen, headLen+bodyLen);
+			self.drawFrame(frame, width, height);
 		}
 	};
 };
 
-MediaStreamRenderer.prototype.drawFrame = function() {
-	debug('drawFrame for video');
-	if (!this.canvasCtx) {
-		//this.canvasCtx = new CanvasI420Context('mainCanvas');
-	}
-};
 
 function WebglTexture(gl) {
 	this.gl = gl;
@@ -933,9 +940,9 @@ function setupCanvas(canvas, options) {
 		gl.STATIC_DRAW);
 	gl.vertexAttribPointer(textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
-	gl.y = new WebglTextureTexture(gl);
-	gl.u = new WebglTextureTexture(gl);
-	gl.v = new WebglTextureTexture(gl);
+	gl.y = new WebglTexture(gl);
+	gl.u = new WebglTexture(gl);
+	gl.v = new WebglTexture(gl);
 	gl.y.bind(0, program, "YTexture");
 	gl.u.bind(1, program, "UTexture");
 	gl.v.bind(2, program, "VTexture");
@@ -971,11 +978,19 @@ function fillBlack(gl) {
 
 // Canvas I420 Context
 function CanvasI420Context(canvas, options) {
-	if (!canvas)
+	if (!canvas) {
+		debug('[canvas] no canvas');
 		return;
+	}
 
-	if (typeof canvas === 'string')
-		canvas = window.document.querySelector(canvas);
+	if (typeof canvas === 'string') {
+		//canvas = window.document.querySelector(canvas);
+		canvas = document.getElementById(canvas);
+		if (!canvas) {
+			debug('[canvas] no canvas!!!');
+			return;
+		}
+	}
 
 	if (!options) {
 		options = {
@@ -984,8 +999,10 @@ function CanvasI420Context(canvas, options) {
 	}
 
 	var glContext = setupCanvas(canvas, options);
-	if (!glContext)
+	if (!glContext) {
+		debug('[canvas] fail to setupCanvas');
 		return;
+	}
 
 	var renderContext = {
 		canvas: canvas,
@@ -1001,8 +1018,29 @@ function CanvasI420Context(canvas, options) {
 		}
 	}
 
+	debug('[canvas] create context success');
 	return renderContext;
 }
+
+MediaStreamRenderer.prototype.initCanvas = function(name) {
+	if (!this.canvasCtx) {
+		this.canvasCtx = new CanvasI420Context(name);
+		debug('[canvas] init canvas context=' + this.canvasCtx);
+	}
+	if (this.canvasCtx) {
+		this.canvasCtx.fillBlack();
+	}
+};
+
+MediaStreamRenderer.prototype.drawFrame = function(frame, width, height) {
+	if (!this.canvasCtx) {
+		return;
+	}
+	//debug('[canvas] drawFrame for video=' + frame.length);
+	var uOffset = parseInt(width * height);
+	var vOffset = parseInt(uOffset + (uOffset / 4));
+	this.canvasCtx.render(frame, width, height, uOffset, vOffset);
+};
 
 
 

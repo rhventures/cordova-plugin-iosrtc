@@ -286,7 +286,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		var width: Int16 = Int16(frame!.width)
 		var height: Int16 = Int16(frame!.height)
 		var rotation: Int16 = Int16(frame!.rotation.rawValue)
-		var timestamp: Int32 = frame!.timeStamp;
+		var timestamp: Int32 = Int32(frame!.timeStamp)
 		
 		// head + body
 		// head: type(2B)+len(4B)+width(2B)+height(2B)+rotation(2B)+timestamp(4B)
