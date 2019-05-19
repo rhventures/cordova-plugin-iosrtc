@@ -60,7 +60,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		self.videoView.delegate = self
 
 		self.eventListener([
-			"type": "renderwebsocket",
+			"type": "videowebsocket",
 			"ws" : [
 				"uuid": self.uuid,
 				"port": self.port
@@ -207,7 +207,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 		// if the zIndex is 0 (the default) bring the view to the top, last one wins
 		if zIndex == 0 {
-			self.webView.superview?.bringSubviewToFront(self.elementView)
+			self.webView.superview?.bringSubview(toFront: self.elementView)
 		}
 
 		if !mirrored {

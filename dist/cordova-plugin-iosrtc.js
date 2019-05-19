@@ -501,6 +501,10 @@ function MediaStreamRenderer(element) {
 	this.stream = undefined;
 	this.videoWidth = undefined;
 	this.videoHeight = undefined;
+
+	// Custom paint
+	this.url = undefined;
+	this.websocket = undefined;
 	this.canvasCtx = undefined;
 
 	// Private attributes.
@@ -775,9 +779,54 @@ MediaStreamRenderer.prototype.close = function () {
 	if (!this.stream) {
 		return;
 	}
+	if (this.websocket) {
+		this.websocket.close();
+		this.websocket = undefined;
+	}
+	this.canvasCtx = undefined;
 	this.stream = undefined;
 
 	exec(null, null, 'iosrtcPlugin', 'MediaStreamRenderer_close', [this.id]);
+};
+
+
+MediaStreamRenderer.prototype.openWebSocket = function(host, port, uuid) {
+	this.url = 'ws://'+host+':'+port+'?uuid='+uuid;
+	this.websocket = new window.WebSocket(this.url);
+	this.websocket.binaryType = 'arraybuffer';
+	this.websocket.onopen = function(event) {
+		debug('websocket open for uuid:'+uuid);
+	};
+	this.websocket.onerror = function(event) {
+		var errorStr = JSON.stringify(error, null, 4);
+		debug('websocket error for uuid:' + uuid + ', error:'+errorStr);
+	};
+	this.websocket.onclose = function(event) {
+		var eventStr = JSON.stringify(event, null, 4);
+		debug('websocket close for uuid:' + uuid + ', error:'+errorStr);
+	};
+	this.websocket.onmessage = function(event) {
+		debug('websocket message for uuid:' + uuid + ', size:' + event.data.length);
+
+		var headLen = 16;
+		var pdu = new DataView(event.data);
+		// 16B + data
+		// head: type(2B) + len(4B) + width(2B) + height(2B) + rotation(2B) + timestamp(4B)
+		// body: len
+		if (pdu.byteLength < headLen) {
+			return;
+		}
+		var pduType = pdu.getUint16(0);
+		var bodyLen = pdu.getUint32(2);
+		var width = pdu.getUint16(6);
+		var height = pdu.getUint16(8);
+		var rotation = pdu.getUint16(10);
+		var timestamp = pdu.getUint32(12);
+		debug('websocket message format: body='+bodyLen+', width='+width+',height='+height);
+		if (pdu.byteLength != (headLen + bodyLen)) {
+			debug('websocket message, wrong data length');
+		}
+	};
 };
 
 MediaStreamRenderer.prototype.drawFrame = function() {
@@ -979,6 +1028,9 @@ function onEvent(data) {
 			event.videoHeight = data.size.height;
 			this.dispatchEvent(event);
 
+			break;
+		case 'videowebsocket':
+			this.openWebSocket("localhost", data.ws.port, data.ws.uuid);
 			break;
 	}
 }
