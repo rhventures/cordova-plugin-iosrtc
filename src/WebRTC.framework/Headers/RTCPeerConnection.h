@@ -124,6 +124,11 @@ RTC_EXPORT
         didAddReceiver:(RTCRtpReceiver *)rtpReceiver
                streams:(NSArray<RTCMediaStream *> *)mediaStreams;
 
+/** Called when a receiver and its track are deleted. */
+@optional
+- (void)peerConnection:(RTCPeerConnection *)peerConnection
+     didRemoveReceiver:(RTCRtpReceiver *)rtpReceiver;
+
 @end
 
 RTC_EXPORT

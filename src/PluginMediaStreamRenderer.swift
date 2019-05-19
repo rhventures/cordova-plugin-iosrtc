@@ -282,26 +282,29 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		let YSize: Int = Int(frame!.width * frame!.height)
 		let USize: Int = Int(YSize / 4)
 		let VSize: Int = Int(YSize / 4)
-		let frameSize:Int = YSize + USize + VSize
+		var frameSize:Int32 = Int32(YSize + USize + VSize)
 		var width: Int16 = Int16(frame!.width)
 		var height: Int16 = Int16(frame!.height)
 		var rotation: Int16 = Int16(frame!.rotation.rawValue)
 		var timestamp: Int32 = frame!.timeStamp;
 		
-		// format: '$'(2B)+width(2B)+height(2B)+rotation(2B)+ts(4B)+'0'(7B) + data
-		let headSize:Int = 16
-		let dataSize:Int = headSize + frameSize
-		let pduData: NSMutableData? = NSMutableData(length: dataSize)
+		// head + body
+		// head: type(2B)+len(4B)+width(2B)+height(2B)+rotation(2B)+timestamp(4B)
+		// body: data(len)
+		let headSize:Int32 = 16
+		let dataSize:Int32 = headSize + frameSize
+		let pduData: NSMutableData? = NSMutableData(length: Int(dataSize))
 		
 		let headPtr = pduData!.mutableBytes
-		var headMark:UInt16 = 0x2401
-		memcpy(headPtr, &headMark, 2)
-		memcpy(headPtr+2, &width, 2)
-		memcpy(headPtr+2+2, &height, 2)
-		memcpy(headPtr+2+2+2, &rotation, 2)
-		memcpy(headPtr+2+2+2+2, &timestamp, 4)
+		var pduType:UInt16 = 0x2401
+		memcpy(headPtr, &pduType, 2)
+		memcpy(headPtr+2, &frameSize, 4)
+		memcpy(headPtr+2+4, &width, 2)
+		memcpy(headPtr+2+4+2, &height, 2)
+		memcpy(headPtr+2+4+2+2, &rotation, 2)
+		//memcpy(headPtr+2+4+2+2+2, &timestamp, 4)
 		
-		let bodyPtr = pduData!.mutableBytes + headSize
+		let bodyPtr = pduData!.mutableBytes + Int(headSize)
 		memcpy(bodyPtr, YPtr, YSize)
 		memcpy(bodyPtr + YSize, UPtr, USize);
 		memcpy(bodyPtr + YSize + USize, VPtr, VSize);

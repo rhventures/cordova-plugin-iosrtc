@@ -817,12 +817,12 @@ MediaStreamRenderer.prototype.openWebSocket = function(host, port, uuid) {
 			return;
 		}
 		var pduType = pdu.getUint16(0);
-		var bodyLen = pdu.getUint32(2);
-		var width = pdu.getUint16(6);
-		var height = pdu.getUint16(8);
-		var rotation = pdu.getUint16(10);
-		var timestamp = pdu.getUint32(12);
-		debug('websocket message format: body='+bodyLen+', width='+width+',height='+height);
+		var bodyLen = pdu.getUint32(2, true);
+		var width = pdu.getUint16(6, true);
+		var height = pdu.getUint16(8, true);
+		var rotation = pdu.getUint16(10, true);
+		var timestamp = pdu.getUint32(12, true);
+		debug('websocket message format: body='+bodyLen+', width='+width+',height='+height+", size="+pdu.byteLength);
 		if (pdu.byteLength != (headLen + bodyLen)) {
 			debug('websocket message, wrong data length');
 		}
