@@ -826,10 +826,10 @@ class iosrtcPlugin : CDVPlugin {
 			NSLog("iosrtcPlugin#MediaStreamRenderer_close() | ERROR: pluginMediaStreamRenderer with id=%@ does not exist", String(id))
 			return
 		}
-		
-		self.server?.close(uuid: pluginMediaStreamRenderer!.uuid, code: 0, reason: "active close")
 
 		pluginMediaStreamRenderer!.close()
+
+		self.server?.close(uuid: pluginMediaStreamRenderer!.uuid, code: -1, reason: "active close")
 
 		// Remove from the dictionary.
 		self.pluginMediaStreamRenderers[id] = nil

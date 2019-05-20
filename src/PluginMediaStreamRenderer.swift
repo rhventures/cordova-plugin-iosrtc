@@ -6,6 +6,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	var uuid: String
 	var port: Int
 	var useCanvas: Bool
+	var closed: Bool
 	var webView: UIView
 	var eventListener: (_ data: NSDictionary) -> Void
 	var cbData: (_ uuid: String, _ data: NSData?) -> Void
@@ -29,6 +30,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		self.uuid = uuid
 		self.port = port
 		self.useCanvas = useCanvas
+		self.closed = false
 	
 		// The browser HTML view.
 		self.webView = webView
@@ -239,7 +241,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 	func close() {
 		NSLog("PluginMediaStreamRenderer#close()")
-
+		self.closed = true
 		self.reset()
 		self.elementView?.removeFromSuperview()
 	}
@@ -282,7 +284,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	
 	func videoView(_ videoView: RTCVideoRenderer, didChange frame: RTCVideoFrame?) {
 		//NSLog("PluginMediaStreamRenderer | renderFrame")
-		if (frame == nil || !self.useCanvas) {
+		if (frame == nil || !self.useCanvas || self.closed) {
 			return
 		}
 		

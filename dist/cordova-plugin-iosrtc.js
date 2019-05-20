@@ -955,11 +955,12 @@ function setupCanvas(canvas, options) {
 	return gl;
 }
 
-function frameSetup(canvas, gl, width, height) {
-	debug('[canvas] frameSetup, change size from='+canvas.width+'x'+canvas.height+' to '+width+'x'+height);
-	canvas.width = width;
-	canvas.height = height;
-	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+function frameSetup(canvas, gl, glx, gly, width, height) {
+	if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+		canvas.width = canvas.clientWidth;
+		canvas.height = canvas.clientHeight;
+	}
+	gl.viewport(glx, gly, width, height);
 }
 
 function renderFrame(gl, videoFrame, width, height, uOffset, vOffset) {
@@ -1011,11 +1012,27 @@ function CanvasI420Context(canvas, options) {
 	}
 
 	var renderContext = {
+		width: 0,
+		height: 0,
 		canvas: canvas,
 		gl: glContext,
 		render: function(videoFrame, width, height, uOffset, vOffset) {
-			if (width != this.canvas.width || height != this.canvas.height) {
-				frameSetup(canvas, this.gl, width, height);
+			if (width != this.width || height != this.height) {
+				var glWidth = canvas.clientWidth;
+				var glHeight = canvas.clientHeight;
+				glHeight = glWidth*(height/width);
+				var glX = 0;
+				var glY = 0;
+				if (canvas.clientHeight > glHeight) {
+					glY = parseInt((canvas.clientHeight - glHeight) / 2);
+				}
+				debug('[canvas] change size from='+this.width+'x'+this.height+' to '+width+'x'+height+
+					', or1='+canvas.clientWidth+'x'+canvas.clientHeight+
+					', or2='+canvas.offsetWidth+'x'+canvas.offsetHeight+
+					', gl='+glWidth+'x'+glHeight+'-'+glX+'x'+glY);
+				frameSetup(canvas, this.gl, glX, glY, glWidth, glHeight);
+				this.width = width;
+				this.height = height;
 			}
 			renderFrame(this.gl, videoFrame, width, height, uOffset, vOffset);
 		},
