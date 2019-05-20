@@ -956,6 +956,7 @@ function setupCanvas(canvas, options) {
 }
 
 function frameSetup(canvas, gl, width, height) {
+	debug('[canvas] frameSetup, change size from='+canvas.width+'x'+canvas.height+' to '+width+'x'+height);
 	canvas.width = width;
 	canvas.height = height;
 	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -990,8 +991,7 @@ function CanvasI420Context(canvas, options) {
 	}
 
 	if (typeof canvas === 'string') {
-		//canvas = window.document.querySelector(canvas);
-		canvas = document.getElementById(canvas);
+		canvas = window.document.querySelector(canvas);
 		if (!canvas) {
 			debug('[canvas] no canvas!!!');
 			return;
@@ -1523,7 +1523,7 @@ function onEvent(data) {
 	var type = data.type,
 		event;
 
-	debug('onEvent() | [type:%s, data:%o]', type, data);
+	//debug('onEvent() | [type:%s, data:%o]', type, data);
 
 	switch (type) {
 		case 'new':

@@ -827,7 +827,7 @@ class iosrtcPlugin : CDVPlugin {
 			return
 		}
 		
-		self.server?.close(uuid: pluginMediaStreamRenderer!.uuid, code: 0, reason: "close")
+		self.server?.close(uuid: pluginMediaStreamRenderer!.uuid, code: 0, reason: "active close")
 
 		pluginMediaStreamRenderer!.close()
 

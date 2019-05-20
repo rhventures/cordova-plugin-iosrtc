@@ -228,7 +228,7 @@ class PluginRTCDataChannel : NSObject, RTCDataChannelDelegate {
 
 	func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
 		if !buffer.isBinary {
-			NSLog("PluginRTCDataChannel | utf8 message received")
+			//NSLog("PluginRTCDataChannel | utf8 message received")
 
 			if self.eventListener != nil {
 				self.emitReceivedMessage(buffer)
@@ -237,7 +237,7 @@ class PluginRTCDataChannel : NSObject, RTCDataChannelDelegate {
 				self.lostMessages.append(buffer)
 			}
 		} else {
-			NSLog("PluginRTCDataChannel | binary message received")
+			//NSLog("PluginRTCDataChannel | binary message received")
 
 			if self.eventListenerForBinaryMessage != nil {
 				self.emitReceivedMessage(buffer)

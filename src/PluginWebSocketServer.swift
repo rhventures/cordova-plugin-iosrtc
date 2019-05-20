@@ -314,7 +314,7 @@ public class PluginWebSocketServer : NSObject, PSWebSocketServerDelegate {
 	}
 	
 	public func server(_ server: PSWebSocketServer!, webSocket: PSWebSocket!, didCloseWithCode code: Int, reason: String, wasClean: Bool) {
-		NSLog("WebSocketServer: WebSocket did close with code: %@, reason: $@, wasClean: $@",
+		NSLog("WebSocketServer: WebSocket did close with code: %@, reason: %@, wasClean: %@",
 			  code, reason, wasClean)
 		
 		if let client = getClient(sock: webSocket)  {
