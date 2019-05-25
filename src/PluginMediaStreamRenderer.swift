@@ -94,13 +94,16 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		}
 
 		// Take the first video track.
+		var pluginVideoTrack: PluginMediaStreamTrack?
 		for (_, track) in pluginMediaStream.videoTracks {
+			pluginVideoTrack = track
 			self.rtcVideoTrack = track.rtcMediaStreamTrack as? RTCVideoTrack
 			break
 		}
 
 		if self.rtcVideoTrack != nil {
 			self.rtcVideoTrack!.add(self.videoView)
+			pluginVideoTrack?.registerRender(render: self)
 		}
 	}
 
@@ -238,6 +241,13 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		self.elementView?.layer.cornerRadius = CGFloat(borderRadius)
 	}
 
+	func stop() {
+		NSLog("PluginMediaStreamRenderer | video stop")
+		
+		self.eventListener([
+			"type": "videostop"
+		])
+	}
 
 	func close() {
 		NSLog("PluginMediaStreamRenderer#close()")

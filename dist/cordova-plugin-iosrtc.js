@@ -503,6 +503,7 @@ function MediaStreamRenderer(element) {
 	this.videoHeight = undefined;
 
 	// Use canvas not UIView
+	this.stopped = false;
 	this.useCanvas = false;
 	this.url = undefined;
 	this.websocket = undefined;
@@ -536,6 +537,7 @@ MediaStreamRenderer.prototype.render = function (stream) {
 		throw new Error('render() requires a MediaStream instance as argument');
 	}
 
+	this.stopped = false;
 	this.stream = stream;
 
 	exec(null, null, 'iosrtcPlugin', 'MediaStreamRenderer_render', [this.id, stream.id]);
@@ -804,6 +806,8 @@ MediaStreamRenderer.prototype.openWebSocket = function(host, port, uuid) {
 
 	var self = this;
 	this.url = 'ws://'+host+':'+port+'?uuid='+uuid;
+	debug('openWebSocket, url='+this.url);
+
 	this.websocket = new window.WebSocket(this.url);
 	this.websocket.binaryType = 'arraybuffer';
 	this.websocket.onopen = function(event) {
@@ -1059,10 +1063,18 @@ MediaStreamRenderer.prototype.drawFrame = function(frame, width, height) {
 	if (!this.canvasCtx) {
 		return;
 	}
+	if (this.stopped) {
+		this.canvasCtx.fillBlack();
+		return;
+	}
 	//debug('[canvas] drawFrame for video=' + frame.length);
 	var uOffset = parseInt(width * height);
 	var vOffset = parseInt(uOffset + (uOffset / 4));
 	this.canvasCtx.render(frame, width, height, uOffset, vOffset);
+};
+
+MediaStreamRenderer.prototype.stop = function () {
+    this.stopped = true;
 };
 
 
@@ -1092,6 +1104,9 @@ function onEvent(data) {
 			break;
 		case 'videowebsocket':
 			this.openWebSocket("localhost", data.ws.port, data.ws.uuid);
+			break;
+		case 'videostop':
+			this.stop();
 			break;
 	}
 }
@@ -2813,6 +2828,7 @@ var
 			video = mutation.target;
 
 			// .src or .srcObject removed.
+			debug('video MutationObserver srcObject='+video.srcObject);
 			if (!video.src && !video.srcObject) {
 				// If this video element was previously handling a MediaStreamRenderer, release it.
 				releaseMediaStreamRenderer(video);
@@ -2936,7 +2952,7 @@ function videoElementsHandler(_mediaStreams, _mediaStreamRenderers) {
 
 
 function observeVideo(video) {
-	debug('observeVideo()');
+	debug('observeVideo(), srcObject='+video.srcObject);
 
 	// If the video already has a src/srcObject property but is not yet handled by the plugin
 	// then handle it now.
@@ -2963,7 +2979,7 @@ function observeVideo(video) {
 		characterDataOldValue: false,
 		// Set to an array of attribute local names (without namespace) if not all attribute mutations
 		// need to be observed. <not work in ios12>
-		//attributeFilter: ['src', 'srcObject'] 
+		//attributeFilter: ['src', 'srcObject']
 	});
 
 	// Intercept video 'error' events if it's due to the attached MediaStream.
@@ -2986,10 +3002,24 @@ function handleVideo(video) {
 		xhr = new XMLHttpRequest(),
 		stream;
 
-	debug('handleVideo, src='+video.id+", srcObject="+video.srcObject);
+	debug('handleVideo, srcObject='+video.srcObject+', src='+video.src);
+
+	// The app has set video.srcObject.
+	if (video.srcObject) {
+		stream = video.srcObject;
+
+		if (!stream.getBlobId()) {
+			// If this video element was previously handling a MediaStreamRenderer, release it.
+			releaseMediaStreamRenderer(video);
+
+			return;
+		}
+
+		provideMediaStreamRenderer(video, stream.getBlobId());
+	}
 
 	// The app has set video.src.
-	if (video.src) {
+	else if (video.src) {
 		xhr.open('GET', video.src, true);
 		xhr.responseType = 'blob';
 		xhr.onload = function () {
@@ -3028,23 +3058,11 @@ function handleVideo(video) {
 		xhr.send();
 	}
 
-	// The app has set video.srcObject.
-	else if (video.srcObject) {
-		stream = video.srcObject;
-
-		if (!stream.getBlobId()) {
-			// If this video element was previously handling a MediaStreamRenderer, release it.
-			releaseMediaStreamRenderer(video);
-
-			return;
-		}
-
-		provideMediaStreamRenderer(video, stream.getBlobId());
-	}
 }
 
 
 function provideMediaStreamRenderer(video, mediaStreamBlobId) {
+	debug('provideMediaStreamRenderer, blobId='+mediaStreamBlobId);
 	var
 		mediaStream = mediaStreams[mediaStreamBlobId],
 		mediaStreamRenderer = mediaStreamRenderers[video._iosrtcMediaStreamRendererId];
@@ -3104,6 +3122,7 @@ function provideMediaStreamRenderer(video, mediaStreamBlobId) {
 
 
 function releaseMediaStreamRenderer(video) {
+	debug('releaseMediaStreamRenderer, video='+video);
 	if (!video._iosrtcMediaStreamRendererId) {
 		return;
 	}
