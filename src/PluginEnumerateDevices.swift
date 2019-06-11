@@ -19,8 +19,8 @@ class PluginEnumerateDevices {
 
 		for device: AVCaptureDevice in devices {
 			var facing: String
-            let hasAudio = device.hasMediaType(AVMediaType.audio)
-            let hasVideo = device.hasMediaType(AVMediaType.video)
+			let hasAudio = device.hasMediaType(AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.audio)))
+			let hasVideo = device.hasMediaType(AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video)))
 
 			switch device.position {
 			case AVCaptureDevice.Position.unspecified:
@@ -49,4 +49,9 @@ class PluginEnumerateDevices {
 
 		callback(json)
 	}
+}
+
+// Helper function inserted by Swift 4.2 migrator.
+fileprivate func convertFromAVMediaType(_ input: AVMediaType) -> String {
+	return input.rawValue
 }
