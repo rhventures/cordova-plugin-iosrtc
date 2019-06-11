@@ -3,9 +3,14 @@ import AVFoundation
 
 
 class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
+	var uuid: String
+	var port: Int
+	var useCanvas: Bool
+	var closed: Bool
 	var webView: UIView
 	var eventListener: (_ data: NSDictionary) -> Void
-	var elementView: UIView
+	var cbData: (_ uuid: String, _ data: NSData?) -> Void
+	var elementView: UIView?
 	var videoView: RTCEAGLVideoView
 	var pluginMediaStream: PluginMediaStream?
 	var rtcAudioTrack: RTCAudioTrack?
@@ -13,30 +18,43 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 
 	init(
+		uuid: String,
+		port: Int,
+		useCanvas: Bool,
 		webView: UIView,
-		eventListener: @escaping (_ data: NSDictionary) -> Void
+		eventListener: @escaping (_ data: NSDictionary) -> Void,
+		cbData: @escaping (_ uuid:String, _ data: NSData?) -> Void
 	) {
 		NSLog("PluginMediaStreamRenderer#init()")
 
+		self.uuid = uuid
+		self.port = port
+		self.useCanvas = useCanvas
+		self.closed = false
+	
 		// The browser HTML view.
 		self.webView = webView
 		self.eventListener = eventListener
-		// The video element view.
-		self.elementView = UIView()
+		self.cbData = cbData
+		
 		// The effective video view in which the the video stream is shown.
 		// It's placed over the elementView.
 		self.videoView = RTCEAGLVideoView()
-
-		self.elementView.isUserInteractionEnabled = false
-		self.elementView.isHidden = true
-		self.elementView.backgroundColor = UIColor.black
-		self.elementView.addSubview(self.videoView)
-		self.elementView.layer.masksToBounds = true
-
+		self.videoView.donotRender = self.useCanvas
 		self.videoView.isUserInteractionEnabled = false
 
-		// Place the video element view inside the WebView's superview
-		self.webView.superview?.addSubview(self.elementView)
+		if (!self.useCanvas) {
+			// The video element view.
+			self.elementView = UIView()
+			self.elementView?.isUserInteractionEnabled = false
+			self.elementView?.isHidden = true
+			self.elementView?.backgroundColor = UIColor.black
+			self.elementView?.addSubview(self.videoView)
+			self.elementView?.layer.masksToBounds = true
+
+			// Place the video element view inside the WebView's superview
+			self.webView.superview?.addSubview(self.elementView!)
+		}
 	}
 
 
@@ -47,8 +65,16 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 	func run() {
 		NSLog("PluginMediaStreamRenderer#run()")
-
+		
 		self.videoView.delegate = self
+
+		self.eventListener([
+			"type": "videowebsocket",
+			"ws" : [
+				"uuid": self.uuid,
+				"port": self.port
+			]
+		])
 	}
 
 
@@ -68,13 +94,16 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		}
 
 		// Take the first video track.
+		var pluginVideoTrack: PluginMediaStreamTrack?
 		for (_, track) in pluginMediaStream.videoTracks {
+			pluginVideoTrack = track
 			self.rtcVideoTrack = track.rtcMediaStreamTrack as? RTCVideoTrack
 			break
 		}
 
 		if self.rtcVideoTrack != nil {
 			self.rtcVideoTrack!.add(self.videoView)
+			pluginVideoTrack?.registerRender(render: self)
 		}
 	}
 
@@ -105,13 +134,13 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 		// If same video track as before do nothing.
 		if oldRtcVideoTrack != nil && self.rtcVideoTrack != nil &&
-			oldRtcVideoTrack!.label == self.rtcVideoTrack!.label {
+			oldRtcVideoTrack!.trackId == self.rtcVideoTrack!.trackId {
 			NSLog("PluginMediaStreamRenderer#mediaStreamChanged() | same video track as before")
 		}
 
 		// Different video track.
 		else if oldRtcVideoTrack != nil && self.rtcVideoTrack != nil &&
-			oldRtcVideoTrack!.label != self.rtcVideoTrack!.label {
+			oldRtcVideoTrack!.trackId != self.rtcVideoTrack!.trackId {
 			NSLog("PluginMediaStreamRenderer#mediaStreamChanged() | has a new video track")
 
 			oldRtcVideoTrack!.remove(self.videoView)
@@ -135,28 +164,32 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 
 
 	func refresh(_ data: NSDictionary) {
-		let elementLeft = data.object(forKey: "elementLeft") as? Float ?? 0
-		let elementTop = data.object(forKey: "elementTop") as? Float ?? 0
-		let elementWidth = data.object(forKey: "elementWidth") as? Float ?? 0
-		let elementHeight = data.object(forKey: "elementHeight") as? Float ?? 0
-		var videoViewWidth = data.object(forKey: "videoViewWidth") as? Float ?? 0
-		var videoViewHeight = data.object(forKey: "videoViewHeight") as? Float ?? 0
+		if (self.useCanvas) {
+			return
+		}
+
+		let elementLeft = data.object(forKey: "elementLeft") as? Double ?? 0
+		let elementTop = data.object(forKey: "elementTop") as? Double ?? 0
+		let elementWidth = data.object(forKey: "elementWidth") as? Double ?? 0
+		let elementHeight = data.object(forKey: "elementHeight") as? Double ?? 0
+		var videoViewWidth = data.object(forKey: "videoViewWidth") as? Double ?? 0
+		var videoViewHeight = data.object(forKey: "videoViewHeight") as? Double ?? 0
 		let visible = data.object(forKey: "visible") as? Bool ?? true
-		let opacity = data.object(forKey: "opacity") as? Float ?? 1
-		let zIndex = data.object(forKey: "zIndex") as? Float ?? 0
+		let opacity = data.object(forKey: "opacity") as? Double ?? 1
+		let zIndex = data.object(forKey: "zIndex") as? Double ?? 0
 		let mirrored = data.object(forKey: "mirrored") as? Bool ?? false
 		let clip = data.object(forKey: "clip") as? Bool ?? true
-		let borderRadius = data.object(forKey: "borderRadius") as? Float ?? 0
+		let borderRadius = data.object(forKey: "borderRadius") as? Double ?? 0
 
 		NSLog("PluginMediaStreamRenderer#refresh() [elementLeft:%@, elementTop:%@, elementWidth:%@, elementHeight:%@, videoViewWidth:%@, videoViewHeight:%@, visible:%@, opacity:%@, zIndex:%@, mirrored:%@, clip:%@, borderRadius:%@]",
 			String(elementLeft), String(elementTop), String(elementWidth), String(elementHeight),
 			String(videoViewWidth), String(videoViewHeight), String(visible), String(opacity), String(zIndex),
 			String(mirrored), String(clip), String(borderRadius))
 
-		let videoViewLeft: Float = (elementWidth - videoViewWidth) / 2
-		let videoViewTop: Float = (elementHeight - videoViewHeight) / 2
+		let videoViewLeft: Double = (elementWidth - videoViewWidth) / 2
+		let videoViewTop: Double = (elementHeight - videoViewHeight) / 2
 
-		self.elementView.frame = CGRect(
+		self.elementView?.frame = CGRect(
 			x: CGFloat(elementLeft),
 			y: CGFloat(elementTop),
 			width: CGFloat(elementWidth),
@@ -180,40 +213,47 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 		)
 
 		if visible {
-			self.elementView.isHidden = false
+			self.elementView?.isHidden = false
 		} else {
-			self.elementView.isHidden = true
+			self.elementView?.isHidden = true
 		}
 
-		self.elementView.alpha = CGFloat(opacity)
-		self.elementView.layer.zPosition = CGFloat(zIndex)
+		self.elementView?.alpha = CGFloat(opacity)
+		self.elementView?.layer.zPosition = CGFloat(zIndex)
 
-                // if the zIndex is 0 (the default) bring the view to the top, last one wins
-                if zIndex == 0 {
-                    self.webView.superview?.bringSubviewToFront(self.elementView)
-                }
+		// if the zIndex is 0 (the default) bring the view to the top, last one wins
+		if zIndex == 0 {
+			self.webView.superview?.bringSubview(toFront: self.elementView!)
+		}
 
 		if !mirrored {
-			self.elementView.transform = CGAffineTransform.identity
+			self.elementView?.transform = CGAffineTransform.identity
 		} else {
-			self.elementView.transform = CGAffineTransform(scaleX: -1.0, y: 1.0)
+			self.elementView?.transform = CGAffineTransform(scaleX: -1.0, y: 1.0)
 		}
 
 		if clip {
-			self.elementView.clipsToBounds = true
+			self.elementView?.clipsToBounds = true
 		} else {
-			self.elementView.clipsToBounds = false
+			self.elementView?.clipsToBounds = false
 		}
 
-		self.elementView.layer.cornerRadius = CGFloat(borderRadius)
+		self.elementView?.layer.cornerRadius = CGFloat(borderRadius)
 	}
 
+	func stop() {
+		NSLog("PluginMediaStreamRenderer | video stop")
+		
+		self.eventListener([
+			"type": "videostop"
+		])
+	}
 
 	func close() {
 		NSLog("PluginMediaStreamRenderer#close()")
-
+		self.closed = true
 		self.reset()
-		self.elementView.removeFromSuperview()
+		self.elementView?.removeFromSuperview()
 	}
 
 
@@ -239,8 +279,7 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	 * Methods inherited from RTCEAGLVideoViewDelegate.
 	 */
 
-
-	func videoView(_ videoView: RTCEAGLVideoView!, didChangeVideoSize size: CGSize) {
+	func videoView(_ videoView: RTCVideoRenderer, didChangeVideoSize size: CGSize) {
 		NSLog("PluginMediaStreamRenderer | video size changed [width:%@, height:%@]",
 			String(describing: size.width), String(describing: size.height))
 
@@ -252,5 +291,47 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 			]
 		])
 	}
+	
+	func videoView(_ videoView: RTCVideoRenderer, didChange frame: RTCVideoFrame?) {
+		//NSLog("PluginMediaStreamRenderer | renderFrame")
+		if (frame == nil || !self.useCanvas || self.closed) {
+			return
+		}
+		
+		let i420: RTCI420BufferProtocol = frame!.buffer.toI420()
+		let YPtr: UnsafePointer<UInt8> = i420.dataY
+		let UPtr: UnsafePointer<UInt8> = i420.dataU
+		let VPtr: UnsafePointer<UInt8> = i420.dataV
+		let YSize: Int = Int(frame!.width * frame!.height)
+		let USize: Int = Int(YSize / 4)
+		let VSize: Int = Int(YSize / 4)
+		var frameSize:Int32 = Int32(YSize + USize + VSize)
+		var width: Int16 = Int16(frame!.width)
+		var height: Int16 = Int16(frame!.height)
+		var rotation: Int16 = Int16(frame!.rotation.rawValue)
+		var timestamp: Int32 = Int32(frame!.timeStamp)
+		
+		// head + body
+		// head: type(2B)+len(4B)+width(2B)+height(2B)+rotation(2B)+timestamp(4B)
+		// body: data(len)
+		let headSize:Int32 = 16
+		let dataSize:Int32 = headSize + frameSize
+		let pduData: NSMutableData? = NSMutableData(length: Int(dataSize))
+		
+		let headPtr = pduData!.mutableBytes
+		var pduType:UInt16 = 0x2401
+		memcpy(headPtr, &pduType, 2)
+		memcpy(headPtr+2, &frameSize, 4)
+		memcpy(headPtr+2+4, &width, 2)
+		memcpy(headPtr+2+4+2, &height, 2)
+		memcpy(headPtr+2+4+2+2, &rotation, 2)
+		//memcpy(headPtr+2+4+2+2+2, &timestamp, 4)
+		
+		let bodyPtr = pduData!.mutableBytes + Int(headSize)
+		memcpy(bodyPtr, YPtr, YSize)
+		memcpy(bodyPtr + YSize, UPtr, USize);
+		memcpy(bodyPtr + YSize + USize, VPtr, VSize);
 
+		self.cbData(self.uuid, pduData)
+	}
 }

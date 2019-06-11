@@ -18,6 +18,7 @@ class iosrtcPlugin : CDVPlugin {
 	var pluginMediaStreamRenderers: [Int : PluginMediaStreamRenderer]!
 	// Dispatch queue for serial operations.
 	var queue: DispatchQueue!
+	var server: PluginWebSocketServer?
 
 
 	// This is just called if <param name="onload" value="true" /> in plugin.xml.
@@ -36,7 +37,8 @@ class iosrtcPlugin : CDVPlugin {
 		pluginRTCPeerConnections = [:]
 
 		// Initialize DTLS stuff.
-		RTCPeerConnectionFactory.initializeSSL()
+		RTCInitializeSSL()
+		//RTCSetMinDebugLogLevel(RTCLoggingSeverity.warning)
 
 		// Create a RTCPeerConnectionFactory.
 		self.rtcPeerConnectionFactory = RTCPeerConnectionFactory()
@@ -45,6 +47,9 @@ class iosrtcPlugin : CDVPlugin {
 		self.pluginGetUserMedia = PluginGetUserMedia(
 			rtcPeerConnectionFactory: rtcPeerConnectionFactory
 		)
+		
+		self.server = PluginWebSocketServer()
+		self.server?.start(lport: 12345, tcpNoDelay: true)
 	}
 
 
@@ -56,6 +61,7 @@ class iosrtcPlugin : CDVPlugin {
     @objc(onAppTerminate)
 	override func onAppTerminate() {
 		NSLog("iosrtcPlugin#onAppTerminate() | doing nothing")
+		self.server?.stop()
 	}
 
 
@@ -548,8 +554,8 @@ class iosrtcPlugin : CDVPlugin {
 		let pcId = command.argument(at: 0) as! Int
 		let dsId = command.argument(at: 1) as! Int
 		let tones = command.argument(at: 2) as! String
-		let duration = command.argument(at: 3) as! Int
-		let interToneGap = command.argument(at: 4) as! Int
+		let duration = command.argument(at: 3) as! Double
+		let interToneGap = command.argument(at: 4) as! Double
 		let pluginRTCPeerConnection = self.pluginRTCPeerConnections[pcId]
 
 		if pluginRTCPeerConnection == nil {
@@ -726,16 +732,26 @@ class iosrtcPlugin : CDVPlugin {
 	@objc(new_MediaStreamRenderer:) func new_MediaStreamRenderer(_ command: CDVInvokedUrlCommand) {
 		NSLog("iosrtcPlugin#new_MediaStreamRenderer()")
 
+		let wsuuid = self.server?.getUUID() ?? ""
+		let wsport = self.server?.realport ?? 0
+		
 		let id = command.argument(at: 0) as! Int
+		let canvas = command.argument(at: 1) as! Bool
 
 		let pluginMediaStreamRenderer = PluginMediaStreamRenderer(
+			uuid: wsuuid,
+			port: wsport,
+			useCanvas: canvas,
 			webView: self.webView!,
 			eventListener: { (data: NSDictionary) -> Void in
 				let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data as! [AnyHashable: Any])
 
 				// Allow more callbacks.
-				result?.setKeepCallbackAs(true);
+				result?.setKeepCallbackAs(true)
 				self.emit(command.callbackId, result: result!)
+			},
+			cbData: { (uuid: String, data: NSData?) -> Void in
+				self.server?.send(uuid: uuid, msg: data)
 			}
 		)
 
@@ -813,6 +829,8 @@ class iosrtcPlugin : CDVPlugin {
 
 		pluginMediaStreamRenderer!.close()
 
+		self.server?.close(uuid: pluginMediaStreamRenderer!.uuid, code: -1, reason: "active close")
+
 		// Remove from the dictionary.
 		self.pluginMediaStreamRenderers[id] = nil
 	}
@@ -885,7 +903,6 @@ class iosrtcPlugin : CDVPlugin {
 			self.commandDelegate!.send(result, callbackId: callbackId)
 		}
 	}
-
 
 	fileprivate func saveMediaStream(_ pluginMediaStream: PluginMediaStream) {
 		if self.pluginMediaStreams[pluginMediaStream.id] == nil {
