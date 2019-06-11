@@ -1,5 +1,5 @@
 {
-  "name": "bidwrangler-iosrtc",
+  "name": "cordova-plugin-iosrtc",
   "version": "4.0.2",
   "description": "Cordova iOS plugin exposing the full WebRTC W3C JavaScript APIs",
   "author": "Iñaki Baz Castillo (https://inakibaz.me)",
