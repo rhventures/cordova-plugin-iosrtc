@@ -10,6 +10,8 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 	var pluginMediaStream: PluginMediaStream?
 	var rtcAudioTrack: RTCAudioTrack?
 	var rtcVideoTrack: RTCVideoTrack?
+	//BRI: added variable
+	var videoZoom: CGFloat {2.0}
 
 
 	init(
@@ -178,6 +180,9 @@ class PluginMediaStreamRenderer : NSObject, RTCEAGLVideoViewDelegate {
 			width: CGFloat(videoViewWidth),
 			height: CGFloat(videoViewHeight)
 		)
+
+		//BRI: trying to make it zoom in all of the time
+		ramp(AVFoundation.toVideoZoomFactor: videoZoom, with Rate: 1.0)
 
 		if visible {
 			self.elementView.isHidden = false
