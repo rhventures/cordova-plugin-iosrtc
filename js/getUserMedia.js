@@ -85,7 +85,8 @@ function getUserMedia(constraints) {
 	//  	frameRate: {
 	//  		min: 1.0,
 	//  		max: 60.0
-	//  	}
+	//  	},
+	//		zoom: false
 	//  }
 	// });
 

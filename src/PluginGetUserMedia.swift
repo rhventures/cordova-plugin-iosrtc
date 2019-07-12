@@ -161,6 +161,13 @@ class PluginGetUserMedia {
 				return
 			}
 
+			//BRI EDIT
+			videoDevice?.lockForConfiguration()
+            let zoomFactor:CGFloat = 16
+            videoDevice?.videoZoomFactor = zoomFactor
+            videoDevice?.unlockForConfiguration()
+
+
 			rtcVideoTrack = self.rtcPeerConnectionFactory.videoTrack(withID: UUID().uuidString,
 				source: rtcVideoSource
 			)
