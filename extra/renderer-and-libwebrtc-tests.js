@@ -1,37 +1,15 @@
 /* global RTCPeerConnection */
 
-//
-// Camera and Microphone Authorization   
-//
-
-/*
-cordova.plugins.diagnostic.requestMicrophoneAuthorization(function (status) {
-    if(status === cordova.plugins.diagnostic.permissionStatus.GRANTED) {
-        console.log('GRANTED');
-    } else {
-        console.log(new Error('AuthorizationDenied'));   
-    }
-}, function (err) {
-    console.log(new Error('AuthorizationFailed: ' + err));   
-});
-
-cordova.plugins.diagnostic.requestCameraAuthorization(function (status) {
-    if(status === cordova.plugins.diagnostic.permissionStatus.GRANTED) {
-        console.log('GRANTED');
-    } else {
-        console.log(new Error('AuthorizationDenied'));   
-    }
-}, function (err) {
-    console.log(new Error('AuthorizationFailed: ' + err));   
-});
-*/
-
 var cordova = window.cordova;
 
 // Expose WebRTC Globals
 if (cordova && cordova.plugins && cordova.plugins.iosrtc) {
   cordova.plugins.iosrtc.registerGlobals();
   cordova.plugins.iosrtc.debug.enable('*', true);
+  cordova.plugins.iosrtc.turnOnSpeaker(true, true);
+  cordova.plugins.iosrtc.requestPermission(true, true, function (result) {
+    console.log('requestPermission.result', result);
+  });
 }
 
 
@@ -45,7 +23,6 @@ var appContainer = document.body;
 //
 // getUserMedia
 //
-
 
 var localStream;
 var localVideoEl;
@@ -103,6 +80,7 @@ function TestGetUserMedia() {
   });
 }
 
+
 var useAnimateVideo = false;
 function TestPluginMediaStreamRenderer(localVideoEl) {
 
@@ -122,7 +100,7 @@ function TestPluginMediaStreamRenderer(localVideoEl) {
     localVideoEl.style.left = currentPosition.x + 'px';
 
     if (cordova && cordova.plugins && cordova.plugins.iosrtc) {
-      cordova.plugins.iosrtc.refreshVideos();
+      //cordova.plugins.iosrtc.refreshVideos();
     }
 
     return (animateTimer = requestAnimationFrame(animateVideo));
@@ -165,6 +143,26 @@ function TestPluginMediaStreamRenderer(localVideoEl) {
 
 }
 
+
+var canvasEl;
+function TestMediaRenderCatpure(videoEl) {
+  canvasEl = document.createElement('canvas');
+  var ctx = canvasEl.getContext("2d");
+  canvasEl.width = "100";
+  canvasEl.height = "100";
+  canvasEl.style.position = 'absolute';
+  canvasEl.style.left = 0;
+  canvasEl.style.bottom = 0;
+  appContainer.appendChild(canvasEl);
+  var image = new Image();
+  image.onload = function() {
+    ctx.drawImage(image, 0, 0, 0, 0);
+  };
+  videoEl.render.save(function (data) {
+    image.src = "data:image/jpg;base64," + data;
+  });
+} 
+
 /*
 // Disabled to avoid confusion with remoteStream
 var cloneStream;
@@ -192,8 +190,46 @@ function TestPluginMediaStreamClone(mediaStream) {
 // Test RTCPeerConnection
 // 
 
-var pc1 = new RTCPeerConnection(),
-    pc2 = new RTCPeerConnection();
+var peerConnectionConfig = {
+    iceServers: [     
+      {
+        urls: "stun:stun.stunprotocol.org"
+      }
+    ]
+};
+var pc1 = new RTCPeerConnection(peerConnectionConfig),
+    pc2 = new RTCPeerConnection(peerConnectionConfig);
+
+var sendChannel, receiveChannel;
+function TestPeerDataChannel() {
+  sendChannel = pc1.createDataChannel("sendChannel");
+
+  sendChannel.onmessage  = function (event) {
+    console.log('sendChannel.onmessage', event, event.data);
+  };
+
+  sendChannel.onopen = function (event) {
+      console.log('sendChannel.onopen', event);
+      sendChannel.send("data message Date: " + new Date());
+  };
+
+  sendChannel.onclose = function (event) {
+      console.log('sendChannel.onclose', event);
+  };
+
+  pc2.ondatachannel = function (event) {
+    receiveChannel = event.channel;
+    receiveChannel.onmessage  = function (event) {
+      console.log('receiveChannel.onmessage', event, event.data);
+    };
+    receiveChannel.onopen  = function (event) {
+      console.log('receiveChannel.onopen', event);
+    };
+    receiveChannel.onclose  = function (event) {
+      console.log('receiveChannel.onclose', event);
+    };
+  };
+}
 
 var peerVideoEl;
 var peerStream;
@@ -223,6 +259,14 @@ function TestRTCPeerConnection(localStream) {
   
   pc2.onicecandidate = function (e) {
     onAddIceCandidate(pc1, e.candidate);
+  };
+
+  pc2.ontrack = function (e) {
+    console.log('pc2.track', e);
+  };
+
+  pc2.onremovetrack = function (e) {
+    console.log('pc2.removeTrack', e);
   };
 
   pc2.onaddstream = function (e) {
@@ -289,11 +333,16 @@ function TestRTCPeerConnection(localStream) {
       };
       console.log('pc1.setRemoteDescription', desc);
       return pc1.setRemoteDescription(desc);
+    }).then(function () {
+      TestMediaRenderCatpure(peerVideoEl);
+      TestMediaRenderCatpure(localVideoEl);
+      TestPeerDataChannel();
     }).catch(function (err) {
       console.log('pc1.createOfferError', err);
     });
   };
 }
+
 
 var useWebRTCAdapter = false;
 
@@ -315,5 +364,6 @@ if (useWebRTCAdapter && typeof window.adapter === 'undefined') {
 } else {
   TestGetUserMedia();
 }
+
 
 
